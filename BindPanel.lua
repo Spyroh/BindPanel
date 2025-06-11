@@ -918,7 +918,6 @@ PetBattleButton[6]:SetAttribute("macrotext", "/run PetBattleFrame.BottomFrame.Fo
 -- Hidden action bar to click on its buttons when the player enters a vehicle or
 -- skyriding mount, with the binds assigned by the user in the vehicle binds panel
 local VehicleBar = CreateFrame("Frame", nil, UIParent, "SecureHandlerAttributeTemplate")
-VehicleBar:SetPoint("CENTER", UIParent, "CENTER", 0, -160)
 VehicleBar:SetAttribute("actionpage", 1)
 VehicleBar:Hide()
 
@@ -935,7 +934,10 @@ for i = 1, 12 do
   B:RegisterForClicks("AnyDown")
 end
 
+-- Table that will store the keybinds desired by the user for vehicles
 VehicleBar:Execute([[ VehicleKeybind = newtable() ]]) -- Key: Button index / Value: Keybind
+
+-- Triggers
 VehicleBar:SetAttribute("_onattributechanged", [[
   -- Actionpage updater
   if name == "page" then
@@ -953,7 +955,7 @@ VehicleBar:SetAttribute("_onattributechanged", [[
     self:SetAttribute("actionpage", Page)
     ChangingPage = nil
 
-  -- Settings binds of higher priority than the normal ones when the player enters a vehicle/pet battle to be able to use the vehicle
+  -- Settings binds of higher priority than the normal ones when the player enters a vehicle, to be able to use it
   elseif name == "vehicletype" then
     if value == "vehicle" then -- Vehicles/Skyriding
       for i = 1, 12 do
@@ -1120,7 +1122,6 @@ for i = 1, 12 do
     local i = Button:GetID()
     DB.VehicleKeybind[i] = Keybind
 
-
     VehicleBar:Execute(format([[
       VehicleKeybind[%d] = "%s"
 
@@ -1249,6 +1250,7 @@ local MinimapButton = LibStub("LibDataBroker-1.1"):NewDataObject("BindPanel", {
     end
   end
 })
+RunNextFrame(function() LibDBIcon10_BindPanel.icon:SetRotation(-0.4) end)
 
 --[[ Events ]]----------------------------------------------------------------------------------------------------------------------------------------
 -- Event PET_BATTLE_OPENING_START
