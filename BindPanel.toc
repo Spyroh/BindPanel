@@ -2,7 +2,7 @@
 ## IconTexture: Interface\MacroFrame\MacroFrame-Icon
 ## Title: BindPanel
 ## Notes: Binds keybinds to macros
-## Version: 1.0.1
+## Version: 1.0.2
 ## Author: Spyro
 ## SavedVariablesPerCharacter: BindPanelDB
 

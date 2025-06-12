@@ -904,7 +904,7 @@ end
 -- enters a pet battle, with the binds assigned by the user in the vehicle binds panel
 local PetBattleButton = {}
 for i = 1, 6 do
-  PetBattleButton[i] = CreateFrame("Button", "BindPanel_PetBattleButton"..i, UIParent, "SecureActionButtonTemplate")
+  PetBattleButton[i] = CreateFrame("Button", "BindPanel_PetBattleButton"..i, nil, "SecureActionButtonTemplate")
   PetBattleButton[i]:RegisterForClicks("AnyDown")
   PetBattleButton[i]:SetAttribute("type", "macro")
   if i <= 3 then PetBattleButton[i]:SetAttribute("macrotext", "/run PetBattleFrame.BottomFrame.abilityButtons["..i.."]:Click()") end
@@ -914,10 +914,10 @@ PetBattleButton[4]:SetAttribute("macrotext", "/run PetBattleFrame.BottomFrame.Sw
 PetBattleButton[5]:SetAttribute("macrotext", "/run PetBattleFrame.BottomFrame.CatchButton:Click()")
 PetBattleButton[6]:SetAttribute("macrotext", "/run PetBattleFrame.BottomFrame.ForfeitButton:Click()")
 
---[[ Vehicle/skyriding bar ]]-------------------------------------------------------------------------------------------------------------------------
+--[[ Vehicle/Skyriding bar ]]-------------------------------------------------------------------------------------------------------------------------
 -- Hidden action bar to click on its buttons when the player enters a vehicle or
 -- skyriding mount, with the binds assigned by the user in the vehicle binds panel
-local VehicleBar = CreateFrame("Frame", nil, UIParent, "SecureHandlerAttributeTemplate")
+local VehicleBar = CreateFrame("Frame", nil, nil, "SecureHandlerAttributeTemplate")
 VehicleBar:SetAttribute("actionpage", 1)
 VehicleBar:Hide()
 
@@ -934,26 +934,17 @@ for i = 1, 12 do
   B:RegisterForClicks("AnyDown")
 end
 
--- Table that will store the keybinds desired by the user for vehicles
+-- Table that will store the keybinds for vehicles desired by the user
 VehicleBar:Execute([[ VehicleKeybind = newtable() ]]) -- Key: Button index / Value: Keybind
 
 -- Triggers
 VehicleBar:SetAttribute("_onattributechanged", [[
-  -- Actionpage updater
+  -- Actionpage update
   if name == "page" then
-    if ChangingPage then return end -- Avoiding infinite loop
-    local Page
-
-    -- Determining the new action page
-    if HasVehicleActionBar() then Page = GetVehicleBarIndex()
-    elseif HasOverrideActionBar() then Page = GetOverrideBarIndex()
-    elseif HasTempShapeshiftActionBar() then Page = GetTempShapeshiftBarIndex()
-    elseif HasBonusActionBar() and GetActionBarPage() == 1 then Page = GetBonusBarIndex()
-    else Page = GetActionBarPage() end
-
-    ChangingPage = true
-    self:SetAttribute("actionpage", Page)
-    ChangingPage = nil
+    if HasVehicleActionBar() then self:SetAttribute("actionpage", GetVehicleBarIndex())
+    elseif HasOverrideActionBar() then self:SetAttribute("actionpage", GetOverrideBarIndex())
+    elseif HasBonusActionBar() then self:SetAttribute("actionpage", GetBonusBarIndex())
+    else self:SetAttribute("actionpage", GetActionBarPage()) end
 
   -- Settings binds of higher priority than the normal ones when the player enters a vehicle, to be able to use it
   elseif name == "vehicletype" then
@@ -978,15 +969,8 @@ RegisterAttributeDriver(VehicleBar, "page",
   "[vehicleui] A;"  ..
   "[possessbar] B;" ..
   "[overridebar] C;"..
-  "[shapeshift] D;" ..
-  "[bonusbar:1] E;" ..
-  "[bonusbar:2] F;" ..
-  "[bonusbar:3] G;" ..
-  "[bonusbar:4] H;" ..
-  "[bonusbar:5] I;" .. -- Skyriding
-  "[bonusbar:6] J;" ..
-  "[bar:2] K;"      ..
-  "L"
+  "[bonusbar:5] D;" .. -- Skyriding
+  "E"
 )
 
 -- Vehicle trigger
@@ -996,7 +980,7 @@ RegisterAttributeDriver(VehicleBar, "vehicletype",
   "none"
 )
 
---[[ Vehicle/skyriding binds panel ]]-----------------------------------------------------------------------------------------------------------------
+--[[ Vehicle/Skyriding binds panel ]]-----------------------------------------------------------------------------------------------------------------
 local VehiclesPanel = CreateFrame("Frame", "BindPanel_VehiclesPanel", UIParent, "ButtonFrameTemplate")
 VehiclesPanel.DefaultWidth = HasSkyriding and 412 or 340
 VehiclesPanel.DefaultButtonWidth = 120
@@ -1152,16 +1136,17 @@ for i = 1, 12 do
     VehiclesPanel.UpdateVehicleButtonsWidth()
   end
 
+  -- Clicks to bind/unbind
   Button:HookScript("OnClick", function(self, MouseButton, Down)
     if Down or InCombat() then return end -- Run only when the button is released
 
-    if MouseButton == "LeftButton" then
+    if MouseButton == "LeftButton" then -- Bind
       self.Text:Hide()
       self.PressKeyLabel:Show()
       self:SetSelected(true)
       BindCatcher:Run(nil, self.Bind)
 
-    elseif MouseButton == "RightButton" then
+    elseif MouseButton == "RightButton" then -- Unbind
       self.Unbind()
     end
   end)
