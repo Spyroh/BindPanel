@@ -351,6 +351,9 @@ ScrollBar:SetPoint("BOTTOMLEFT", Panel.LeftInset, "BOTTOMRIGHT", -16, 1)
 ScrollUtil.AddManagedScrollBarVisibilityBehavior(ScrollBox, ScrollBar, AnchorsWithScrollBar, AnchorsWithoutScrollBar)
 
 local ScrollView = CreateScrollBoxListLinearView()
+local function Initializer(Frame, Node) Frame:Init(Node) end
+local function CustomFactory(Factory, Node) Factory(Node:GetData().Template, Initializer) end
+ScrollView:SetElementFactory(CustomFactory)
 ScrollView:SetDataProvider(KeybindListDataProvider)
 ScrollUtil.InitScrollBoxListWithScrollBar(ScrollBox, ScrollBar, ScrollView)
 
@@ -948,7 +951,7 @@ VehicleBar:SetAttribute("_onattributechanged", [[
 
   -- Settings binds of higher priority than the normal ones when the player enters a vehicle, to be able to use it
   elseif name == "vehicletype" then
-    if value == "vehicle" then -- Vehicles/Skyriding
+    if value == "vehicle" then -- Vehicle/Skyriding
       for i = 1, 12 do
         if VehicleKeybind[i] then self:SetBindingClick(true, VehicleKeybind[i], "BindPanel_VehicleButton"..i) end
       end
@@ -1109,7 +1112,7 @@ for i = 1, 12 do
     VehicleBar:Execute(format([[
       VehicleKeybind[%d] = "%s"
 
-      -- If the player is already in vehicle set the bind
+      -- If the player is already in a vehicle, set the bind
       if SecureCmdOptionParse("[vehicleui][possessbar][overridebar][bonusbar:5] true") then -- Vehicle
         self:SetBindingClick(true, "%s", "BindPanel_VehicleButton%d")
       elseif %s and %d <= 6 then -- Pet battle
@@ -1235,7 +1238,6 @@ local MinimapButton = LibStub("LibDataBroker-1.1"):NewDataObject("BindPanel", {
     end
   end
 })
-RunNextFrame(function() LibDBIcon10_BindPanel.icon:SetRotation(-0.4) end)
 
 --[[ Events ]]----------------------------------------------------------------------------------------------------------------------------------------
 -- Event PET_BATTLE_OPENING_START
@@ -1273,24 +1275,11 @@ function Event:ACTIVE_TALENT_GROUP_CHANGED()
   Event:ACTIVE_PLAYER_SPECIALIZATION_CHANGED()
 end
 
--- Event PLAYER_REGEN_ENABLED
--- Triggers when the player leaves combat.
-function Event:PLAYER_REGEN_ENABLED()
-  Event:UnregisterEvent("PLAYER_REGEN_ENABLED") -- Only needs to run one time
-  Event:PLAYER_ENTERING_WORLD()
-end
-
--- Event PLAYER_ENTERING_WORLD
--- Fires whenever the loading screen appears. After the first one the spec data is already available.
-function Event:PLAYER_ENTERING_WORLD()
-  Event:UnregisterEvent("PLAYER_ENTERING_WORLD") -- Only needs to run one time
-
-  if InCombatLockdown() then
-    Msg("The addon couldn't load properly because you logged-in in combat.")
-    PlaySound(847)
-    Event:RegisterEvent("PLAYER_REGEN_ENABLED")
-    return
-  end
+-- Event ADDON_LOADED
+-- Fires after an addon has been loaded.
+function Event:ADDON_LOADED(AddonName)
+  if AddonName ~= "BindPanel" then return end
+  Event:UnregisterEvent("ADDON_LOADED") -- Only needs to run one time
 
   -- Creating the SavedVariable
   BindPanelDB = BindPanelDB or {}
@@ -1299,12 +1288,25 @@ function Event:PLAYER_ENTERING_WORLD()
   -- Initializing minimap button
   DB.minimap = DB.minimap or {}
   LibStub("LibDBIcon-1.0"):Register("BindPanel", MinimapButton, DB.minimap)
+  LibDBIcon10_BindPanel.icon:SetRotation(-0.4)
 
   -- Main panel position
   if DB.PanelOffsetX then
     Panel:ClearAllPoints()
     Panel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DB.PanelOffsetX, DB.PanelOffsetY)
   end
+
+  -- Vehicles panel position
+  if DB.VehiclesPanelOffsetX then
+    VehiclesPanel:ClearAllPoints()
+    VehiclesPanel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DB.VehiclesPanelOffsetX, DB.VehiclesPanelOffsetY)
+  end
+end
+
+-- Event PLAYER_ENTERING_WORLD
+-- Fires whenever the loading screen appears. The first it triggers spec data is already available.
+function Event:PLAYER_ENTERING_WORLD()
+  Event:UnregisterEvent("PLAYER_ENTERING_WORLD") -- Only needs to run one time
 
   -- Adding specializations to the database
   for SpecIndex = 1, GetNumSpecs() do
@@ -1339,24 +1341,20 @@ function Event:PLAYER_ENTERING_WORLD()
   SpecMenu:SetupMenu(SpecMenu.Generator) -- Generating the spec selection menu on the main panel
   LoadSpecBindings(DB.CurrentSpec) -- Loading bindings for the current spec
 
+  -- Registering event to detect spec changes
   Event:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
   if TocVersion < 70000 then Event:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED") end
-
-  -- Vehicles panel position
-  if DB.VehiclesPanelOffsetX then
-    VehiclesPanel:ClearAllPoints()
-    VehiclesPanel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DB.VehiclesPanelOffsetX, DB.VehiclesPanelOffsetY)
-  end
 
   -- Vehicle keybinds
   if not DB.VehicleKeybind then -- First run of the addon
     DB.VehicleKeybind = {}
-    for i = 1, 6 do -- Adding the default vehicle keybinds
+    for i = 1, 9 do -- Adding the default vehicle keybinds
       DB.VehicleKeybind[i] = GetBindingKey("ACTIONBUTTON"..i) or tostring(i)
     end
   end
 
-  for i = 1, 12 do -- Loading vehicle keybinds
+  -- Loading vehicle keybinds
+  for i = 1, 12 do
     if DB.VehicleKeybind[i] then
       VehiclesPanel.Button[i].Bind(DB.VehicleKeybind[i])
     end
@@ -1365,6 +1363,7 @@ end
 
 -- Registration
 Event:SetScript("OnEvent", function(self, event, ...) return self[event](self, ...) end)
+Event:RegisterEvent("ADDON_LOADED")
 Event:RegisterEvent("PLAYER_ENTERING_WORLD")
 if WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC then
   Event:RegisterEvent("PET_BATTLE_OPENING_START")
