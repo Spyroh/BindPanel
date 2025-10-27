@@ -1,9 +1,10 @@
-## Interface: 110205, 50501, 40402, 30405, 20504, 11507
+## Interface: 120000, 110205, 50501, 40402, 30405, 20504, 11508
 ## IconTexture: Interface\MacroFrame\MacroFrame-Icon
 ## Title: BindPanel
 ## Notes: Binds keybinds to macros
-## Version: 1.0.3
+## Version: 1.0.4
 ## Author: Spyro
+## LoadSavedVariablesFirst: 1
 ## SavedVariablesPerCharacter: BindPanelDB
 
 Libs\LibStub.lua

@@ -16,7 +16,6 @@ local IsClassic = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE
 local IsPreCata = TocVersion < 40000
 local HasSkyriding = TocVersion >= 100000
 local Vehicle = HasSkyriding and "Vehicle/Skyriding" or "Vehicle"
-local _,DB -- Will store a local reference to the SavedVariable
 local Event = CreateFrame("Frame") -- Frame for event processing
 local Panel = CreateFrame("Frame", "BindPanel_Panel", UIParent, "ButtonFrameTemplate") -- Main panel
 local BindCatcher = CreateFrame("Frame", "BindPanel_BindCatcher", UIParent) -- Catches the keybind pressed when creating/editing a macro
@@ -29,6 +28,10 @@ local ScrollBox -- Scrollbox for the list of keybinds
 local SpecMenu -- DropDown to select the current specialization in the main panel
 local StackSplitCancel = StackSplitCancelButton or StackSplitFrame.CancelButton -- Button for closing the StackSplitFrame
 local Dialog -- Defined later
+
+-- SavedVariable
+BindPanelDB = BindPanelDB or {}
+local DB = BindPanelDB
 
 -- Font for the keybind list buttons
 CreateFont("BindPanel_BindFont")
@@ -239,6 +242,12 @@ Panel.TitleContainer.TitleText:ClearAllPoints()
 Panel.TitleContainer.TitleText:SetPoint("CENTER", Panel.TitleContainer, "CENTER", 0, IsClassic and 1 or -1)
 ButtonFrameTemplate_HidePortrait(Panel)
 tinsert(UISpecialFrames, "BindPanel_Panel")
+
+-- Position
+if DB.PanelOffsetX then
+  Panel:ClearAllPoints()
+  Panel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DB.PanelOffsetX, DB.PanelOffsetY)
+end
 
 -- Frame to move the panel from the title bar
 local TitleBarMover = CreateFrame("Frame", nil, Panel)
@@ -1002,6 +1011,12 @@ BindPanel_VehiclesPanelTitleText:SetText("BindPanel")
 BindPanel_VehiclesPanelInset:Hide()
 tinsert(UISpecialFrames, "BindPanel_VehiclesPanel")
 
+-- Position
+if DB.VehiclesPanelOffsetX then
+  VehiclesPanel:ClearAllPoints()
+  VehiclesPanel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DB.VehiclesPanelOffsetX, DB.VehiclesPanelOffsetY)
+end
+
 -- Frame to move the panel from the title bar
 TitleBarMover = CreateFrame("Frame", nil, VehiclesPanel)
 TitleBarMover:SetPoint("TOPLEFT", VehiclesPanel, "TOPLEFT", 5, -1)
@@ -1239,6 +1254,9 @@ local MinimapButton = LibStub("LibDataBroker-1.1"):NewDataObject("BindPanel", {
   end
 })
 
+DB.minimap = DB.minimap or {}
+LibStub("LibDBIcon-1.0"):Register("BindPanel", MinimapButton, DB.minimap)
+
 --[[ Events ]]----------------------------------------------------------------------------------------------------------------------------------------
 -- Event PET_BATTLE_OPENING_START
 -- Triggers when a pet battle starts. Used only in MoP because it doesn't have the [petbattle]
@@ -1275,38 +1293,11 @@ function Event:ACTIVE_TALENT_GROUP_CHANGED()
   Event:ACTIVE_PLAYER_SPECIALIZATION_CHANGED()
 end
 
--- Event ADDON_LOADED
--- Fires after an addon has been loaded.
-function Event:ADDON_LOADED(AddonName)
-  if AddonName ~= "BindPanel" then return end
-  Event:UnregisterEvent("ADDON_LOADED") -- Only needs to run one time
-
-  -- Creating the SavedVariable
-  BindPanelDB = BindPanelDB or {}
-  DB = BindPanelDB
-
-  -- Initializing minimap button
-  DB.minimap = DB.minimap or {}
-  LibStub("LibDBIcon-1.0"):Register("BindPanel", MinimapButton, DB.minimap)
-  LibDBIcon10_BindPanel.icon:SetRotation(-0.4)
-
-  -- Main panel position
-  if DB.PanelOffsetX then
-    Panel:ClearAllPoints()
-    Panel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DB.PanelOffsetX, DB.PanelOffsetY)
-  end
-
-  -- Vehicles panel position
-  if DB.VehiclesPanelOffsetX then
-    VehiclesPanel:ClearAllPoints()
-    VehiclesPanel:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", DB.VehiclesPanelOffsetX, DB.VehiclesPanelOffsetY)
-  end
-end
-
 -- Event PLAYER_ENTERING_WORLD
--- Fires whenever the loading screen appears. The first it triggers spec data is already available.
+-- Fires whenever the loading screen appears. The first time it triggers spec data is already available.
 function Event:PLAYER_ENTERING_WORLD()
   Event:UnregisterEvent("PLAYER_ENTERING_WORLD") -- Only needs to run one time
+  LibDBIcon10_BindPanel.icon:SetRotation(-0.4) -- Aesthetic change for the minimap icon
 
   -- Adding specializations to the database
   for SpecIndex = 1, GetNumSpecs() do
@@ -1363,7 +1354,6 @@ end
 
 -- Registration
 Event:SetScript("OnEvent", function(self, event, ...) return self[event](self, ...) end)
-Event:RegisterEvent("ADDON_LOADED")
 Event:RegisterEvent("PLAYER_ENTERING_WORLD")
 if WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC then
   Event:RegisterEvent("PET_BATTLE_OPENING_START")
