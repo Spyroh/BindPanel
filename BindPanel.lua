@@ -3,7 +3,7 @@
 --║ ├┴┐││││ ││├─┘├─┤│││├┤ │   ║
 --║ └─┘┴┘└┘─┴┘┴  ┴ ┴┘└┘└─┘┴─┘ ║
 --╠═══════════════════════════╣
---║  By Spyro [Mandokir EU]   ║
+--║  By Spyro [Sanguino EU]   ║
 --╚═══════════════════════════╝
 
 --[[ Upvalues of frequently used functions ]]---------------------------------------------------------------------------------------------------------
@@ -954,11 +954,11 @@ VehicleBar:SetAttribute("_onattributechanged", [[
   -- Actionpage update
   if name == "page" then
     if HasVehicleActionBar() then self:SetAttribute("actionpage", GetVehicleBarIndex())
-    elseif HasOverrideActionBar() then self:SetAttribute("actionpage", GetOverrideBarIndex())
+    elseif HasOverrideActionBar() then self:SetAttribute("actionpage", GetOverrideBarIndex()) 
     elseif HasBonusActionBar() then self:SetAttribute("actionpage", GetBonusBarIndex())
     else self:SetAttribute("actionpage", GetActionBarPage()) end
 
-  -- Settings binds of higher priority than the normal ones when the player enters a vehicle, to be able to use it
+  -- Setting binds of higher priority than the normal ones when the player enters a vehicle, to be able to use it
   elseif name == "vehicletype" then
     if value == "vehicle" then -- Vehicle/Skyriding
       for i = 1, 12 do
@@ -976,16 +976,17 @@ VehicleBar:SetAttribute("_onattributechanged", [[
   end
 ]])
 
--- Actionpage trigger
+-- Trigger to update the actionpage of the hidden actionbar for vehicles
 RegisterAttributeDriver(VehicleBar, "page",
-  "[vehicleui] A;"  ..
-  "[possessbar] B;" ..
-  "[overridebar] C;"..
-  "[bonusbar:5] D;" .. -- Skyriding
-  "E"
+  "[@vehicle,exists] A;".. -- Needed because [vehicleui] triggers before HasVehicleActionBar() is true
+  "[vehicleui] B;"      ..
+  "[possessbar] C;"     ..
+  "[overridebar] D;"    ..
+  "[bonusbar:5] E;"     .. -- Skyriding
+  "F"
 )
 
--- Vehicle trigger
+-- Trigger to detect vehicles to do the remapping to vehicle buttons while we are in one
 RegisterAttributeDriver(VehicleBar, "vehicletype",
   "[vehicleui][possessbar][overridebar][bonusbar:5] vehicle;"..
   "[petbattle] petbattle;"..
@@ -1128,7 +1129,7 @@ for i = 1, 12 do
       VehicleKeybind[%d] = "%s"
 
       -- If the player is already in a vehicle, set the bind
-      if SecureCmdOptionParse("[vehicleui][possessbar][overridebar][bonusbar:5] true") then -- Vehicle
+      if SecureCmdOptionParse("[@vehicle,exists][vehicleui][possessbar][overridebar][bonusbar:5] true") then -- Vehicle
         self:SetBindingClick(true, "%s", "BindPanel_VehicleButton%d")
       elseif %s and %d <= 6 then -- Pet battle
         self:SetBindingClick(true, "%s", "BindPanel_PetBattleButton%d")
@@ -1185,7 +1186,7 @@ UI.Title:SetText("|cFF00FF00BindPanel")
 UI.Credits = UI:CreateFontString(nil, "ARTWORK")
 UI.Credits:SetFont("Fonts/FRIZQT__.TTF", 14)
 UI.Credits:SetPoint("TOPRIGHT", -16, -12)
-UI.Credits:SetText("By |cFFFFFF00Spyro|r [Mandokir EU]")
+UI.Credits:SetText("By |cFFFFFF00Spyro|r [Sanguino EU]")
 
 -- Addon instructions
 UI.Tutorial = UI:CreateFontString(nil, "ARTWORK")

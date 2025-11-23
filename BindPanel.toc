@@ -1,8 +1,8 @@
-## Interface: 120000, 110205, 50501, 40402, 30405, 20504, 11508
+## Interface: 120000, 110207, 110205, 50502, 40402, 38000, 30405, 20505, 11508
 ## IconTexture: Interface\MacroFrame\MacroFrame-Icon
 ## Title: BindPanel
 ## Notes: Binds keybinds to macros
-## Version: 1.0.4
+## Version: 1.0.5
 ## Author: Spyro
 ## LoadSavedVariablesFirst: 1
 ## SavedVariablesPerCharacter: BindPanelDB
