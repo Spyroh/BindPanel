@@ -7,8 +7,8 @@
 --╚═══════════════════════════╝
 
 --[[ Upvalues of frequently used functions ]]---------------------------------------------------------------------------------------------------------
-local gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, GetTalentTabInfo, GetTalentTreeRoles, GetSpecialization                                          , GetSpecializationInfo
-    = gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, GetTalentTabInfo, GetTalentTreeRoles, GetSpecialization or C_SpecializationInfo.GetSpecialization, GetSpecializationInfo or C_SpecializationInfo.GetSpecializationInfo
+local gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, GetTalentTabInfo, GetTalentTreeRoles, GetSpecialization                                          , GetSpecializationInfo                                              , StripHyperlinks
+    = gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, GetTalentTabInfo, GetTalentTreeRoles, GetSpecialization or C_SpecializationInfo.GetSpecialization, GetSpecializationInfo or C_SpecializationInfo.GetSpecializationInfo, StripHyperlinks or C_StringUtil.StripHyperlinks
 
 --[[ Local namespace vars ]]--------------------------------------------------------------------------------------------------------------------------
 local _,_,_,TocVersion = GetBuildInfo()
@@ -78,7 +78,7 @@ end
 
 -- GetNumSpecs()
 -- Return the total numbers of specializations.
-local GetNumSpecs = GetNumSpecializations or GetNumTalentTabs -- Retail/MoP or Vanilla/TBC/WotLK/Cata
+local GetNumSpecs = TocVersion < 50000 and GetNumTalentTabs or GetNumSpecializations -- Vanilla/TBC/WotLK/Cata or Retail/MoP
 
 -- GetPlayerSpec()
 -- Returns the current class specialization index.
@@ -500,43 +500,8 @@ end
 Panel:HookScript("OnReceiveDrag", OnReceiveDrag)
 EditBox:HookScript("OnReceiveDrag", OnReceiveDrag)
 
--- Hook for linking spells to the Editor in Vanilla/TBC/WotLK, adding the spell rank
-if IsPreCata then
-  hooksecurefunc("SpellButton_OnModifiedClick", function(self)
-    local Slot = SpellBook_GetSpellBookSlot(self)
-    if Slot > MAX_SPELLS then return end
-
-    if IsModifiedClick("CHATLINK") and EditBox:IsVisible() and EditBox:HasFocus() then
-      local SpellName, SpellRank = GetSpellBookItemName(Slot, SpellBookFrame.bookType)
-      if SpellName and not IsPassiveSpell(Slot, SpellBookFrame.bookType) then
-        if SpellRank and strlen(SpellRank) > 0 then EditBox:InsertMacroEntity("spell", SpellName.."("..SpellRank..")")
-        else EditBox:InsertMacroEntity("spell", SpellName) end
-      end
-    end
-  end)
-end
-
--- Hook for linking in Cata/MoP Classic
--- In these iterations of the game the Spellbook is bugged and doesn't have linking (SHIFT+Click doesn't do anything)
-if WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC or WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC then
-  for i = 1, 12 do
-    local Button = _G["SpellButton"..i]
-    Button:HookScript("OnClick", function(self)
-      local Slot = SpellBook_GetSpellBookSlot(self)
-      if Slot > MAX_SPELLS then return end
-
-      if IsModifiedClick("CHATLINK") and EditBox:IsVisible() and EditBox:HasFocus() then
-        local SpellName = GetSpellBookItemName(Slot, SpellBookFrame.bookType)
-        if SpellName and not IsPassiveSpell(Slot, SpellBookFrame.bookType) then
-          EditBox:InsertMacroEntity("spell", SpellName)
-        end
-      end
-    end)
-  end
-end
-
 -- General hook for linking stuff to the Editor
-hooksecurefunc("ChatEdit_InsertLink", function(Link)
+local InsertLinkHook = function(Link)
   if Link and EditBox:IsVisible() and EditBox:HasFocus() then
     local Type = LinkUtil.ExtractLink(Link)
 
@@ -554,7 +519,29 @@ hooksecurefunc("ChatEdit_InsertLink", function(Link)
       end)
     end
   end
-end)
+end
+hooksecurefunc("ChatEdit_InsertLink", InsertLinkHook) -- Classic
+if ChatFrameUtil.InsertLink then hooksecurefunc(ChatFrameUtil, "InsertLink", InsertLinkHook) end -- Retail
+
+-- Hook for linking spells to the Editor in Vanilla/TBC/WotLK, adding the spell rank
+if IsPreCata then
+  local function OnSpellBookButtonClick(self)
+    local Slot = SpellBook_GetSpellBookSlot(self)
+    if Slot > MAX_SPELLS then return end
+
+    if IsModifiedClick("CHATLINK") and EditBox:IsVisible() and EditBox:HasFocus() then
+      local SpellName, SpellRank = GetSpellBookItemName(Slot, SpellBookFrame.bookType)
+      if SpellName and not IsPassiveSpell(Slot, SpellBookFrame.bookType) then
+        if SpellRank and strlen(SpellRank) > 0 then EditBox:InsertMacroEntity("spell", SpellName.."("..SpellRank..")")
+        else EditBox:InsertMacroEntity("spell", SpellName) end
+      end
+    end
+  end
+
+  for i = 1, 12 do
+    _G["SpellButton"..i]:HookScript("OnClick", OnSpellBookButtonClick)
+  end
+end
 
 -- Scroll for the EditBox
 local ScrollFrame = CreateFrame("ScrollFrame", nil, Panel, "ScrollFrameTemplate")
