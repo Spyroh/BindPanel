@@ -14,6 +14,7 @@ local gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick
 local _,_,_,TocVersion = GetBuildInfo()
 local IsClassic = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE
 local IsPreCata = TocVersion < 40000
+local IsEvoker = UnitClassBase("player") == "EVOKER"
 local HasSkyriding = TocVersion >= 100000
 local Vehicle = HasSkyriding and "Vehicle/Skyriding" or "Vehicle"
 local Event = CreateFrame("Frame") -- Frame for event processing
@@ -24,10 +25,10 @@ local TotalMacroButtons = 0 -- Total of macro buttons created
 local FreeMacroButtons = {} -- Stores the unused macro buttons, to be reused later
 local KeybindToButton = {} -- Stores each keybind and the name of the macro button that it runs
 local KeybindSelected -- Stores the keybind selected to be edited
+local Dialog -- Defined later to show messages to the user
 local ScrollBox -- Scrollbox for the list of keybinds
 local SpecMenu -- DropDown to select the current specialization in the main panel
 local StackSplitCancel = StackSplitCancelButton or StackSplitFrame.CancelButton -- Button for closing the StackSplitFrame
-local Dialog -- Defined later
 
 -- SavedVariable
 BindPanelDB = BindPanelDB or {}
@@ -139,7 +140,13 @@ local function Bind(Keybind, Macro)
       TotalMacroButtons = TotalMacroButtons + 1
       Button = CreateFrame("Button", "BindPanel_MacroButton"..TotalMacroButtons, nil, "SecureActionButtonTemplate")
       Button:RegisterForClicks("AnyDown")
+      Button:SetAttribute("useOnKeyDown", true)
       Button:SetAttribute("type", "macro")
+      if IsEvoker then -- Support for the Evoker's "Hold and Release" empowered spell input
+        Button:RegisterForClicks("AnyDown", "AnyUp")
+        Button:SetAttribute("typerelease", "macro")
+        Button:SetAttribute("pressAndHoldAction", true)
+      end
     end
 
     Button:SetAttribute("macrotext", Macro)
@@ -812,6 +819,7 @@ end)
 
 --[[ DropDown to select the current specialization ]]-------------------------------------------------------------------------------------------------
 SpecMenu = CreateFrame("DropdownButton", nil, Panel, "WowStyle1DropdownTemplate")
+SpecMenu.Text:SetFont("Fonts/FRIZQT__.TTF", 12)
 SpecMenu:SetPoint("BOTTOMRIGHT", Panel.RightInset, "TOPRIGHT", IsClassic and -2 or -1, 2)
 SpecMenu:HookScript("OnEnter", function() MenuUtil.HideTooltip(SpecMenu) end) -- Hiding the dropdown's tooltip
 
