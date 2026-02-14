@@ -6,18 +6,18 @@
 --║  By Spyro [Sanguino EU]   ║
 --╚═══════════════════════════╝
 
---[[ Upvalues of frequently used functions ]]---------------------------------------------------------------------------------------------------------
-local gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, GetTalentTabInfo, GetTalentTreeRoles, GetSpecialization                                          , GetSpecializationInfo                                              , StripHyperlinks
-    = gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, GetTalentTabInfo, GetTalentTreeRoles, GetSpecialization or C_SpecializationInfo.GetSpecialization, GetSpecializationInfo or C_SpecializationInfo.GetSpecializationInfo, StripHyperlinks or C_StringUtil.StripHyperlinks
+--[[ Upvalues ]]--------------------------------------------------------------------------------------------------------------------------------------
+local gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, C_SpecializationInfo, StripHyperlinks
+    = gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, C_SpecializationInfo, StripHyperlinks or C_StringUtil.StripHyperlinks
 
 --[[ Local namespace vars ]]--------------------------------------------------------------------------------------------------------------------------
 local _,_,_,TocVersion = GetBuildInfo()
+local Class = UnitClassBase("player")
 local IsClassic = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE
 local IsPreCata = TocVersion < 40000
-local IsEvoker = UnitClassBase("player") == "EVOKER"
+local IsPreMoP = TocVersion < 50000
 local HasSkyriding = TocVersion >= 100000
 local Vehicle = HasSkyriding and "Vehicle/Skyriding" or "Vehicle"
-local Event = CreateFrame("Frame") -- Frame for event processing
 local Panel = CreateFrame("Frame", "BindPanel_Panel", UIParent, "ButtonFrameTemplate") -- Main panel
 local BindCatcher = CreateFrame("Frame", "BindPanel_BindCatcher", UIParent) -- Catches the keybind pressed when creating/editing a macro
 local MacroKeybindCatchDialog = CreateFrame("Frame", nil, UIParent, "DialogBoxFrame") -- Showed to the user when waiting to catch a keybind for a macro
@@ -33,6 +33,10 @@ local StackSplitCancel = StackSplitCancelButton or StackSplitFrame.CancelButton 
 -- SavedVariable
 BindPanelDB = BindPanelDB or {}
 local DB = BindPanelDB
+
+-- Frame for event processing
+local Event = CreateFrame("Frame")
+Event:SetScript("OnEvent", function(self, event, ...) return self[event](self, ...) end)
 
 -- Font for the keybind list buttons
 CreateFont("BindPanel_BindFont")
@@ -78,34 +82,40 @@ local function InCombat()
 end
 
 -- GetNumSpecs()
--- Return the total numbers of specializations.
-local GetNumSpecs = TocVersion < 50000 and GetNumTalentTabs or GetNumSpecializations -- Vanilla/TBC/WotLK/Cata or Retail/MoP
-
--- GetPlayerSpec()
--- Returns the current class specialization index.
-local function GetPlayerSpec()
-  local SpecIndex
-
-  if GetSpecialization then -- Retail/MoP
-    Spec = GetSpecialization()
-    if Spec ~= 5 then SpecIndex = Spec end
-  else -- Vanilla/TBC/WotLK/Cata
-    SpecIndex = GetPrimaryTalentTree(false, false, GetActiveTalentGroup()) -- Talent tree with the most points spent
-  end
-
-  return SpecIndex
-end
+-- Returns the total numbers of specializations.
+local GetNumSpecs = IsPreMoP and GetNumTalentTabs or GetNumSpecializations
 
 -- GetSpecName()
 -- Returns the name of a specialization.
 local function GetSpecName(SpecIndex)
-  if GetSpecializationInfo then -- Retail/MoP
-    local _,Name = GetSpecializationInfo(SpecIndex)
-    return Name
-  else -- Vanilla/TBC/WotLK/Cata
-    local _,Name = GetTalentTabInfo(SpecIndex)
-    return Name
-  end 
+  local _,Name = C_SpecializationInfo.GetSpecializationInfo(SpecIndex)
+  return Name
+end
+
+-- GetPrimaryTalentTree()
+-- Returns the talent tree with the most points spent.
+-- Rewrite of this API function because it doesn't work in Vanilla/TBC.
+local function GetPrimaryTalentTree()
+  local MainTree = 5 -- Default value for low level chars with no points spent (similar to Retail's low level spec)
+  local MostPointsSeen = 0
+  local ActiveTalentGroup = GetActiveTalentGroup()
+
+  for Tree = 1, GetNumTalentTabs() do
+    local _,_,_,_,PointsSpent = GetTalentTabInfo(Tree, nil, nil, ActiveTalentGroup)
+    if PointsSpent > MostPointsSeen then
+      MainTree = Tree
+      MostPointsSeen = PointsSpent
+    end
+  end
+
+  return MainTree
+end
+
+-- GetPlayerSpec()
+-- Returns the current class specialization index.
+local function GetPlayerSpec()
+  local SpecIndex = IsPreMoP and GetPrimaryTalentTree() or C_SpecializationInfo.GetSpecialization()
+  return SpecIndex ~= 5 and SpecIndex or nil
 end
 
 -- GetKeybindVisual()
@@ -142,7 +152,7 @@ local function Bind(Keybind, Macro)
       Button:RegisterForClicks("AnyDown")
       Button:SetAttribute("useOnKeyDown", true)
       Button:SetAttribute("type", "macro")
-      if IsEvoker then -- Support for the Evoker's "Hold and Release" empowered spell input
+      if Class == "EVOKER" then -- Support for the Evoker's "Hold and Release" empowered spell input
         Button:RegisterForClicks("AnyDown", "AnyUp")
         Button:SetAttribute("typerelease", "macro")
         Button:SetAttribute("pressAndHoldAction", true)
@@ -782,11 +792,9 @@ function BindCatcher:ProcessKeybind(Key)
   local Mod = ""
 
   -- Checking the modifiers pressed
-  -- Right modifiers
   if IsRightAltKeyDown()     then Mod = Mod.."RALT-"   end
   if IsRightControlKeyDown() then Mod = Mod.."RCTRL-"  end
   if IsRightShiftKeyDown()   then Mod = Mod.."RSHIFT-" end
-  -- Left modifiers
   if IsLeftAltKeyDown()      then Mod = Mod.."LALT-"   end
   if IsLeftControlKeyDown()  then Mod = Mod.."LCTRL-"  end
   if IsLeftShiftKeyDown()    then Mod = Mod.."LSHIFT-" end
@@ -1308,14 +1316,8 @@ function Event:PLAYER_ENTERING_WORLD()
   -- If there isn't any spec selected (first run of the addon), detect the spec
   if DB.CurrentSpec == nil then
     DB.CurrentSpec = GetPlayerSpec()
-
-    if not DB.CurrentSpec then -- If the spec can't be identified, set it as the first DPS spec found
-      DB.CurrentSpec = 1 -- Default value coz GetTalentTreeRoles() always returns nil in Vanilla
-
-      for i = 1, GetNumSpecs() do
-        local Role = GetSpecializationInfo and select(5, GetSpecializationInfo(i)) or GetTalentTreeRoles(i)
-        if Role == "DAMAGER" then DB.CurrentSpec = i break end
-      end
+    if not DB.CurrentSpec then -- If the spec can't be identified (low level char with no spec), set it as a DPS spec
+      DB.CurrentSpec = (Class == "DRUID" or Class == "SHAMAN" or Class == "WARRIOR") and 1 or 3
     end
   end
 
@@ -1328,7 +1330,7 @@ function Event:PLAYER_ENTERING_WORLD()
   SpecMenu:SetupMenu(SpecMenu.Generator) -- Generating the spec selection menu on the main panel
   LoadSpecBindings(DB.CurrentSpec) -- Loading bindings for the current spec
 
-  -- Registering event to detect spec changes
+  -- Registering events to detect spec changes
   Event:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
   if TocVersion < 70000 then Event:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED") end
 
@@ -1349,7 +1351,6 @@ function Event:PLAYER_ENTERING_WORLD()
 end
 
 -- Registration
-Event:SetScript("OnEvent", function(self, event, ...) return self[event](self, ...) end)
 Event:RegisterEvent("PLAYER_ENTERING_WORLD")
 if WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC then
   Event:RegisterEvent("PET_BATTLE_OPENING_START")
