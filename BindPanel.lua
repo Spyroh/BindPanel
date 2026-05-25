@@ -7,8 +7,8 @@
 --╚═══════════════════════════╝
 
 --[[ Upvalues ]]--------------------------------------------------------------------------------------------------------------------------------------
-local gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, C_SpecializationInfo, StripHyperlinks
-    = gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick, C_SpecializationInfo, StripHyperlinks or C_StringUtil.StripHyperlinks
+local gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick
+    = gsub, strlenutf8, CreateFrame, SetOverrideBinding, SetOverrideBindingClick
 
 --[[ Local namespace vars ]]--------------------------------------------------------------------------------------------------------------------------
 local _,_,_,TocVersion = GetBuildInfo()
@@ -586,7 +586,7 @@ function EditBox:UpdateWidth()
   self:SetWidth(ScrollFrame:GetWidth() - (ScrollBar:IsVisible() and 12 or 0)) -- Less width if the ScrollBar is visible, to make room for it
 end
 
--- Move the scrollbar down if we surpass the limit of the EditBox while writing
+-- Move the scrollbar down if we surpass the EditBox's limit while writing
 EditBox:HookScript("OnCursorChanged", function(self, NewX, NewY, CursorWidth, CursorHeight)
   local vs = ScrollFrame:GetVerticalScroll()
   if (vs + NewY) > 0 or (vs + NewY - CursorHeight + ScrollFrame:GetHeight()) < 0 then
